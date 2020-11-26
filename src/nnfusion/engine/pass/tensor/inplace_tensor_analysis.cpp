@@ -77,6 +77,53 @@ bool InplaceTensorAnalysis::run(std::shared_ptr<InterpreterContext> ctx,
             if (auto kernel = ins->getKernel())
             {
                 NNFUSION_CHECK_NOT_NULLPTR(kernel->m_context);
+                // NNFUSION_LOG(INFO) << "analysing the kernel " << kernel->is_emitted();        
+                // NNFUSION_LOG(INFO) << "analysing the kernel " << kernel->get_kernel_type();        
+                // NNFUSION_LOG(INFO) << "analysing the kernel " << kernel->get_function_name();
+
+                if (kernel->is_emitted())
+                {
+                    if (kernel->m_context->input_names.size() < 4)
+                        continue;
+                    auto input = kernel->m_context->inputs[3];
+                    auto input_gnode = gnode->get_in_edge(3)->get_src();
+                    // Todo: refine the hardcoding interface
+                    if (input->get_name() != "Add_1099_0")
+                        continue;
+                    std::map<std::shared_ptr<descriptor::Tensor>,
+                        std::pair<std::shared_ptr<descriptor::Tensor>, size_t>>
+                        in_place_outputs;
+
+                    for (auto output : kernel->m_context->outputs)
+                    {
+                        // NNFUSION_LOG(INFO) << "print the name " << output->get_name();
+                        if (!is_same_dev(input, output))
+                        {
+                            NNFUSION_LOG(NNFUSION_WARNING)
+                                << "Tensor inplace oi pairs are not in same device, ignored.";
+                            continue;
+                        }
+
+                        in_place_outputs.insert({output, std::make_pair(input, 0)});
+                        if (inplace_inputs.count(input) > 0)
+                        {
+                            inplace_inputs[output] = inplace_inputs[input];
+                        }
+                        else
+                        {
+                            inplace_inputs[output].input_node = input_gnode;
+                            inplace_inputs[output].tensor = input;
+                        }
+                        auto input_tensor = inplace_inputs[output].tensor;
+                        if (inplace_use_count.count(input_tensor) == 0)
+                            inplace_use_count[input_tensor] = 0;
+                        inplace_use_count[input_tensor] += 1;
+                    }
+                    if (in_place_outputs.size() > 0)
+                    {
+                        (*ins)["InplaceTensorMapping"] = in_place_outputs;
+                    }
+                }
 
                 if (auto annotations = kernel->m_context->annotations)
                 {

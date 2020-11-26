@@ -407,19 +407,19 @@ bool BlockFusionWavefrontOptimizer::SkipGroupOnProfilingResult(
         }
 
         // skip group when there are too many large kernels in this group
-        if (profiling_result.num_large_kernels >= profiling_result.num_kernels)
-        {
-            NNFUSION_LOG(INFO) << "BlockFusion: skip group, too many large kernels";
-            return true;
-        }
+        // if (profiling_result.num_large_kernels >= profiling_result.num_kernels)
+        // {
+        //     NNFUSION_LOG(INFO) << "BlockFusion: skip group, too many large kernels";
+        //     return true;
+        // }
 
         // skip group when BlockFusion gets no gain
-        if (profiling_result.fused_estimation_time >= profiling_result.normal_execution_time)
-        {
-            NNFUSION_LOG(INFO)
-                << "BlockFusion: skip group, fused_estimation_time >= normal_execution_time";
-            return true;
-        }
+        // if (profiling_result.fused_estimation_time >= profiling_result.normal_execution_time)
+        // {
+        //     NNFUSION_LOG(INFO)
+        //         << "BlockFusion: skip group, fused_estimation_time >= normal_execution_time";
+        //     return true;
+        // }
     }
 
     return false;

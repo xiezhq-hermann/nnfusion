@@ -60,6 +60,18 @@ param_list = {
     "AvgPool": {
         'symbol': ['input0', 'output0'],
         'dtype': ['float*', 'float*']
+    },
+    "Sum": {
+        'symbol': ['input0', 'output0'],
+        'dtype': ['float*', 'float*']
+    },
+    "ZeroOut": {
+        'symbol': ['input0', 'output0'],
+        'dtype': ['int*', 'int*']
+    },
+    "IndexSum": {
+        'symbol': ['output0', 'input1', 'input0', 'input2', 'input3'],
+        'dtype': ['float*', 'int*', 'float*', 'int*', 'float*']
     }
 }
 
@@ -77,11 +89,15 @@ def gen_key(data, dtype="float"):
     key = op_type
     key += ";".join(",".join(str(i) for i in shape) for shape in in_shape)
     if op_type in conv_augmented:
-        key += "float" * len(in_shape)
+        key += dtype * len(in_shape)
     else:
         key += ";" + ";".join(",".join(str(i) for i in shape)
                               for shape in out_shape)
-        key += "float" * (len(in_shape) + len(out_shape))
+        # hardcoding for IndexSum
+        if op_type == "IndexSum":
+            key += "floatint32_tint32_tfloatfloat"
+        else:
+            key += dtype * (len(in_shape) + len(out_shape))
 
     if op_type in conv_family:
         key += "".join(["Strides{", ", ".join(str(i)
@@ -96,10 +112,10 @@ def gen_key(data, dtype="float"):
                 pass
             elif op == "Add":
                 key += "Add" + ";".join(",".join(str(i) for i in shape)
-                                        for shape in out_shape * 3) + "float" * 3 * len(out_shape)
+                                        for shape in out_shape * 3) + dtype * 3 * len(out_shape)
             elif op == "Relu":
                 key += "Relu" + ";".join(",".join(str(i) for i in shape)
-                                         for shape in out_shape * 2) + "float" * 2 * len(out_shape)
+                                         for shape in out_shape * 2) + dtype * 2 * len(out_shape)
             else:
                 raise ("to be specified")
     elif op_type == "AvgPool" or op_type == "MaxPool":
@@ -159,6 +175,18 @@ def gen_config(op_type, kernel, shared_memory, num_sync):
             "window_stride": kernel["parameters"]["window_stride"],
             "padding_below": kernel["parameters"]["padding_below"]
         }
+    elif (op_type == "Sum"):
+        config["in_shape"] = [kernel["parameters"]["input_shape"]]
+        config["out_shape"] = [kernel["parameters"]["output_shape"]]
+        config["function_sig"] = "extern \"C\" __global__  void (float* input0, float* output0)"
+    elif (op_type == "ZeroOut"):
+        config["in_shape"] = [kernel["parameters"]["input_shape"]]
+        config["out_shape"] = [kernel["parameters"]["output_shape"]]
+        config["function_sig"] = "extern \"C\" __global__  void (int* input0, int* output0)"
+    elif (op_type == "IndexSum"):
+        config["in_shape"] = [kernel["parameters"]["feature_shape"], (kernel["parameters"]["neighbor_shape"][0],), kernel["parameters"]["neighbor_shape"], kernel["parameters"]["feature_shape"]]
+        config["out_shape"] = [kernel["parameters"]["feature_shape"]]
+        config["function_sig"] = "extern \"C\" __global__  void (int* input0, int* output0)"
     else:
         raise ("not implemented")
 
@@ -217,9 +245,10 @@ if __name__ == '__main__':
 
         config = gen_config(op_type, kernel, shared_memory, num_sync=0)
 
-        prepare_file(signature, sync_code, config,
-                     db_path + "profile/", parse=True)
-        num_sync = log_sync(signature, db_path + "profile/")
+        # prepare_file(signature, sync_code, config,
+        #              db_path + "profile/", parse=True)
+        # num_sync = log_sync(signature, db_path + "profile/")
+        num_sync = 0
         config["num_sync"] = num_sync
 
         # feel free to customize the repo name you want
@@ -242,8 +271,8 @@ if __name__ == '__main__':
         resource = math.ceil(
             prod(config["blockDim"])/32)*32 * prod(config["gridDim"])
 
-        prepare_file(signature, kernel["code"], config, db_path + "profile/")
-        profile_info = profile(signature, db_path + "profile/")
-        print(profile_info, resource, config["num_sync"])
+        # prepare_file(signature, kernel["code"], config, db_path + "profile/")
+        # profile_info = profile(signature, db_path + "profile/")
+        print(resource, config["num_sync"])
         insert_db(operator_path + name, resource,
-                  tags=default_tags, profile=profile_info)
+                  tags=default_tags)

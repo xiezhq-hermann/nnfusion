@@ -26,7 +26,7 @@ echo "- Dependencies are installed in system."
     #Install latest CMake
 
 # if Ubuntu 16.04, we have some dev node using ubuntu 16.04
-if [[ $ubuntu_codename == "xenial" ]]; then
+if [ $ubuntu_codename == "xenial" ] || [ $ubuntu_codename == "bionic" ]; then
     echo "- Ubuntu 16.04 detected. Download & install latest protobuf & gtest debs."
 
     # Install protobuf & gtest from bionic version

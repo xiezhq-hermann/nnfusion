@@ -366,6 +366,7 @@ pair<NNFusion_DeviceType, kernels::KernelEmitter::Pointer>
     if (identifier != "")
     {
         // Todo: more tags and policy to be added
+        NNFUSION_LOG(INFO) << "Trying to fetch " << identifier;        
         std::set<std::string> tags = {};
         auto fetched_kernel = cache_manager->fetch_with_tags(identifier, platform.front(), tags);
         if (fetched_kernel.function != "")
